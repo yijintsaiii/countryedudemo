@@ -1166,9 +1166,6 @@
                     <i data-lucide="tree-pine" class="w-6 h-6 text-brand-700"></i>
                     技能樹｜知識圖譜驅動的職涯適配
                   </div>
-                  <div class="text-sm text-slate-600 mb-3">
-                    以實務證據累積量驅動技能節點，點擊節點可連結至 timeline 結構化實務紀錄（情境→行動→成果）
-                  </div>
                   <div class="inline-flex items-center gap-2 rounded-full bg-brand-50/50 px-4 py-2 text-xs text-brand-700 border border-brand-100">
                     🎓
                     <span>由英國愛丁堡大學 Future Education 專家指導，結合蓋洛普 (Gallup) 與六型人格 (Holland Code) 分析框架</span>
@@ -1287,7 +1284,17 @@
                   <div class="space-y-3">
                     <div v-for="(item, idx) in aiGrowthInsightList" :key="idx" class="rounded-xl bg-white p-4 border border-slate-200/50">
                       <div class="text-xs font-bold text-slate-800">{{ item.studentName }}</div>
-                      <p class="mt-2 text-xs text-slate-600">{{ item.interestAlignment }}</p>
+                      <p class="mt-2 text-xs text-slate-600">
+                        <template v-for="(part, pi) in parseRecordRefs(item.interestAlignment)" :key="pi">
+                          <span v-if="part.type === 'text'">{{ part.value }}</span>
+                          <button
+                            v-else
+                            type="button"
+                            class="font-bold underline text-brand-700 hover:text-brand-800 hover:no-underline cursor-pointer"
+                            @click="openResume(item.student)"
+                          >#{{ part.num }} 紀錄</button>
+                        </template>
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1296,7 +1303,17 @@
                   <div class="space-y-3">
                     <div v-for="(item, idx) in aiDeviationAlerts" :key="idx" class="rounded-xl bg-white p-4 border border-slate-200/50">
                       <div class="text-xs font-bold text-slate-800">{{ item.studentName }}</div>
-                      <p class="mt-2 text-xs text-slate-600">{{ item.suggestion }}</p>
+                      <p class="mt-2 text-xs text-slate-600">
+                        <template v-for="(part, pi) in parseRecordRefs(item.suggestion)" :key="pi">
+                          <span v-if="part.type === 'text'">{{ part.value }}</span>
+                          <button
+                            v-else
+                            type="button"
+                            class="font-bold underline text-brand-700 hover:text-brand-800 hover:no-underline cursor-pointer"
+                            @click="openResume(item.student)"
+                          >#{{ part.num }} 紀錄</button>
+                        </template>
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1440,7 +1457,6 @@
                     <i data-lucide="target" class="w-4 h-4 text-brand-700"></i>
                     核心勝任力投入量（證據累積）
                   </div>
-                  <div class="text-xs text-slate-500 mb-4">點擊頂點可查看該維度實務證據清單 · 不打分、看投入</div>
                   <div class="rounded-[16px] bg-slate-50/50 p-4">
                     <canvas ref="resumeRadarCanvas" height="240"></canvas>
                   </div>
@@ -1483,7 +1499,6 @@
               <div class="space-y-4">
                 <div class="rounded-[24px] border border-slate-200/50 bg-white p-6">
                   <div class="text-sm font-semibold text-brand-700 mb-1">實戰經驗萃取之核心勝任力證明</div>
-                  <div class="text-xs text-slate-500 mb-3">結構化實務紀錄：情境 → 關鍵行動 → 成果證明</div>
                   <div v-if="resumeBehaviorNarrative(resumeModal.student)" class="mb-4 rounded-xl bg-[#A7D08C]/15 border border-[#A7D08C]/40 px-4 py-3 text-xs text-slate-700">
                     📈 行為變化：{{ resumeBehaviorNarrative(resumeModal.student) }}
                   </div>
@@ -1666,7 +1681,8 @@
             const base = { problemSolving: 0, communication: 0, selfAwareness: 0, leadership: 0 };
             if (!timeline || !Array.isArray(timeline)) return base;
             timeline.forEach((e) => {
-              (e.evidence || []).forEach((tag) => {
+              const tags = [...new Set([].concat(e.evidence || [], e.tags || []))];
+              tags.forEach((tag) => {
                 for (const [key, keywords] of Object.entries(EVIDENCE_DIMENSION_MAP)) {
                   if (keywords.some((kw) => tag.includes(kw) || kw.includes(tag))) {
                     base[key]++;
@@ -1691,7 +1707,7 @@
               keywords: ["協作", "回饋", "對齊"],
               tags: ["溝通協力", "主動回饋", "把目標說清楚"],
               careerInterest: "行銷／對外溝通",
-              skills: { problemSolving: 2, communication: 4, selfAwareness: 0, leadership: 0 },
+              skills: { problemSolving: 3, communication: 5, selfAwareness: 2, leadership: 2 },
               collaborationRole: "BD人",
               collaborationScore: 85,
               communicationFreq: "高頻",
@@ -1722,6 +1738,26 @@
                   note: "主導需求收斂會議，釐清利害關係人期待並產出共識結論。先聆聽再收斂，降低後續溝通成本。",
                   evidence: ["溝通韌性", "需求對齊"],
                 },
+                {
+                  id: uid("t"),
+                  kind: "reflection",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 45)),
+                  place: "自我探索｜結構化實務紀錄",
+                  title: "同理聆聽與自我覺察練習",
+                  badge: "實務證據",
+                  note: "在團隊衝突中練習先同理聆聽再表達立場，事後寫下情緒命名與反思，覺察自己在協作中的角色。",
+                  evidence: ["自我覺察", "同理聆聽", "溝通協力"],
+                },
+                {
+                  id: uid("t"),
+                  kind: "milestone",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 30)),
+                  place: "立德計畫｜專案收斂",
+                  title: "小型專案帶領與任務拆解",
+                  badge: "里程碑",
+                  note: "擔任小組長負責產出規格與分工，運用需求對齊與任務拆解完成交付，獲導師肯定。",
+                  evidence: ["專案執行", "任務拆解", "需求對齊"],
+                },
               ],
             },
             {
@@ -1736,7 +1772,7 @@
               keywords: ["面試壓力", "自我否定", "睡眠不足"],
               tags: ["面試挫折→拆題練習", "自我覺察"],
               careerInterest: "技術開發／工程",
-              skills: { problemSolving: 4, communication: 0, selfAwareness: 0, leadership: 0 },
+              skills: { problemSolving: 4, communication: 2, selfAwareness: 2, leadership: 1 },
               collaborationRole: "遊俠",
               collaborationScore: 65,
               communicationFreq: "中頻",
@@ -1767,6 +1803,36 @@
                   note: "將面試卡關點收斂為可練習的題型與話術，訂定每週練習目標並追蹤完成率。",
                   evidence: ["邏輯拆解", "目標管理"],
                 },
+                {
+                  id: uid("t"),
+                  kind: "reflection",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 35)),
+                  place: "自我探索｜情緒與壓力",
+                  title: "面試焦慮的自我覺察與情緒命名",
+                  badge: "實務證據",
+                  note: "記錄面試前後的情緒變化並為情緒命名，區分「緊張」與「自我否定」，找到可調整的念頭。",
+                  evidence: ["自我覺察", "情緒命名"],
+                },
+                {
+                  id: uid("t"),
+                  kind: "milestone",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 25)),
+                  place: "模擬面試｜同儕回饋",
+                  title: "結構化表達與主動回饋",
+                  badge: "實務證據",
+                  note: "參與模擬面試並給予同儕主動回饋，練習把技術拆解用結構化方式說明。",
+                  evidence: ["結構化表達", "主動回饋", "問題解決"],
+                },
+                {
+                  id: uid("t"),
+                  kind: "reflection",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 20)),
+                  place: "專題小組",
+                  title: "任務拆解與小範圍帶領",
+                  badge: "實務證據",
+                  note: "在專題中負責模組拆解與時程規劃，帶領兩位組員完成子任務，練習專案執行。",
+                  evidence: ["任務拆解", "專案執行"],
+                },
               ],
             },
             {
@@ -1781,7 +1847,7 @@
               keywords: ["學分焦慮", "時間管理"],
               tags: ["時間管理", "學分焦慮→拆解路線"],
               careerInterest: "專案協調／營運",
-              skills: { problemSolving: 2, communication: 0, selfAwareness: 0, leadership: 0 },
+              skills: { problemSolving: 3, communication: 3, selfAwareness: 2, leadership: 2 },
               collaborationRole: "通用人才",
               collaborationScore: 75,
               communicationFreq: "中高頻",
@@ -1802,6 +1868,36 @@
                   note: "主導需求收斂會議，產出學分地圖與修業時程表，解決跨部門資訊落差，獲得導師核可。",
                   evidence: ["邏輯拆解", "風險控管"],
                 },
+                {
+                  id: uid("t"),
+                  kind: "reflection",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 40)),
+                  place: "專案協調｜營運實務",
+                  title: "需求對齊與溝通韌性",
+                  badge: "實務證據",
+                  note: "在跨組協調中練習需求對齊與溝通韌性，先聆聽再提出方案，降低重複溝通成本。",
+                  evidence: ["需求對齊", "溝通韌性", "溝通協力"],
+                },
+                {
+                  id: uid("t"),
+                  kind: "reflection",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 28)),
+                  place: "自我探索｜節奏覺察",
+                  title: "時間壓力下的自我覺察",
+                  badge: "實務證據",
+                  note: "記錄學分與申請並行時的情緒與取捨，練習情緒命名與同理聆聽自己的需求。",
+                  evidence: ["自我覺察", "情緒命名", "目標管理"],
+                },
+                {
+                  id: uid("t"),
+                  kind: "milestone",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 22)),
+                  place: "課業專案｜小組",
+                  title: "小型專案分工與團隊帶領",
+                  badge: "里程碑",
+                  note: "產出 WBS 並分配任務，帶領組員完成學分地圖與修業時程，練習專案執行與任務拆解。",
+                  evidence: ["專案執行", "任務拆解", "團隊帶領"],
+                },
               ],
             },
             {
@@ -1816,7 +1912,7 @@
               keywords: ["帶領", "界線"],
               tags: ["溫柔領導", "界線練習"],
               careerInterest: "專案管理／團隊帶領",
-              skills: { problemSolving: 0, communication: 0, selfAwareness: 0, leadership: 2 },
+              skills: { problemSolving: 2, communication: 3, selfAwareness: 2, leadership: 4 },
               collaborationRole: "通用人才",
               collaborationScore: 90,
               communicationFreq: "高頻",
@@ -1836,6 +1932,81 @@
                   badge: "里程碑",
                   note: "產出專案規格書 (PRD) 與 WBS，將工作拆成 6 個可交付項目並分配負責人，降低 15% 溝通成本。",
                   evidence: ["專案執行", "任務拆解"],
+                },
+                {
+                  id: uid("t"),
+                  kind: "reflection",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 42)),
+                  place: "社團｜團隊帶領",
+                  title: "溫柔領導與界線練習",
+                  badge: "實務證據",
+                  note: "在帶學弟妹時練習溫柔領導與界線：說明自己能做的範圍、把一段交棒出去，並同理聆聽對方需求。",
+                  evidence: ["溫柔領導", "同理聆聽", "團隊帶領"],
+                },
+                {
+                  id: uid("t"),
+                  kind: "reflection",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 32)),
+                  place: "自我探索｜帶領中的覺察",
+                  title: "帶領時的情緒覺察與調整",
+                  badge: "實務證據",
+                  note: "記錄自己扛太多時的情緒與身體反應，練習情緒命名與自我覺察，再調整為一起做。",
+                  evidence: ["自我覺察", "情緒命名"],
+                },
+                {
+                  id: uid("t"),
+                  kind: "milestone",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 26)),
+                  place: "跨組協作｜需求對齊",
+                  title: "跨組需求收斂與溝通協力",
+                  badge: "實務證據",
+                  note: "主責跨組需求收斂會議，運用需求對齊與結構化表達產出共識，並主動回饋給利害關係人。",
+                  evidence: ["需求對齊", "溝通協力", "主動回饋", "結構化表達"],
+                },
+                {
+                  id: uid("t"),
+                  kind: "reflection",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 15)),
+                  place: "專案｜風險與目標",
+                  title: "專案風險控管與目標管理",
+                  badge: "實務證據",
+                  note: "將活動風險拆解為可控項目並訂定里程碑，追蹤完成率，展現邏輯拆解與目標管理。",
+                  evidence: ["風險控管", "目標管理", "邏輯拆解"],
+                },
+              ],
+            },
+            {
+              id: "E",
+              name: "鄭雅文",
+              profile: "職涯興趣偏行銷溝通｜目前實務證據多落在技術拆解｜建議對齊目標累積溝通類紀錄",
+              profileShort: "興趣・證據未對齊",
+              riskLevel: "watch",
+              emotionScore: 48,
+              emotionLabel: "尚在探索",
+              alertReason: "職涯興趣與實務證據軌跡偏離",
+              keywords: ["行銷", "對外溝通", "品牌"],
+              tags: ["邏輯拆解", "風險控管"],
+              careerInterest: "行銷／對外溝通／品牌",
+              skills: { problemSolving: 2, communication: 0, selfAwareness: 0, leadership: 0 },
+              collaborationRole: "通用人才",
+              collaborationScore: 68,
+              communicationFreq: "中頻",
+              skillTreeProgress: { technical: 50, communication: 45, management: 40 },
+              coachPlan: {
+                title: "把興趣寫成可累積的證據",
+                detail: "本週試著記錄一則「對外說明、需求收斂或跨組溝通」的經驗，用情境→行動→成果寫下來，讓軌跡更對齊行銷／溝通目標。",
+                progress: 35,
+              },
+              timeline: [
+                {
+                  id: uid("t"),
+                  kind: "reflection",
+                  date: toISODate(new Date(Date.now() - 1000 * 60 * 60 * 24 * 12)),
+                  place: "課業｜報告撰寫",
+                  title: "期末報告規格拆解與風險控管",
+                  badge: "實務證據",
+                  note: "將報告拆成可交付段落、訂定截止節點並追蹤完成，避免最後一週擠在一起。",
+                  evidence: ["邏輯拆解", "風險控管", "目標管理"],
                 },
               ],
             },
@@ -2435,7 +2606,7 @@
                 else if (techMatch) interestAlignment = `${refPhrase}目前證據較多落在「${focusLabel}」。你對「${interest}」有興趣，可思考是否要增加一則技術拆解或問題解決的實務紀錄，讓軌跡更對齊目標。`;
                 else interestAlignment = `${refPhrase}目前實務證據較多集中在「${focusLabel}」（約 ${pct}%）。可思考是否要更對齊興趣方向，或持續深化現有強項。`;
               }
-              return { studentName: s.name, interestAlignment };
+              return { studentName: s.name, student: s, interestAlignment };
             });
           });
 
@@ -2456,10 +2627,10 @@
                 else if (hasTechInterest && techEvidence === 0) suggestion = `${timelineRef}你的目標偏技術／工程，但目前實務證據尚未涵蓋問題解決維度。提醒：當前行為軌跡可多朝「邏輯拆解、風險控管」等紀錄累積，會更朝向目標前進。`;
                 else if (hasCommInterest && commEvidence === 0) suggestion = `${timelineRef}你的目標偏溝通／行銷／專案，但目前實務證據較少在溝通協力。提醒：當前行為軌跡可多記錄「溝通韌性、需求對齊」等經驗，會更朝向目標前進。`;
                 else suggestion = `${timelineRef}投入量低於建議軌道。建議本週新增 1～2 則結構化實務紀錄，或與導師安排一次目標重整對話（不打分，僅提醒軌跡是否朝向目標）。`;
-                return { studentName: s.name, suggestion };
+                return { studentName: s.name, student: s, suggestion };
               })
               .filter(Boolean)
-              .slice(0, 3);
+              .slice(0, 4);
           });
 
           // --- Team Collaboration Data (保留供其他區塊使用，團隊協作儀表板已移除) ---
@@ -3385,6 +3556,22 @@
             });
           }
 
+          /** 將含 #N 紀錄 的文字拆成「文本片段」與「紀錄編號」陣列，供 AI 成長覺察中心按鈕化渲染 */
+          function parseRecordRefs(text) {
+            if (!text || typeof text !== "string") return [{ type: "text", value: "" }];
+            const parts = [];
+            const re = /#(\d+)\s*紀錄/g;
+            let last = 0;
+            let m;
+            while ((m = re.exec(text)) !== null) {
+              if (m.index > last) parts.push({ type: "text", value: text.slice(last, m.index) });
+              parts.push({ type: "ref", num: parseInt(m[1], 10) });
+              last = re.lastIndex;
+            }
+            if (last < text.length) parts.push({ type: "text", value: text.slice(last) });
+            return parts.length ? parts : [{ type: "text", value: text }];
+          }
+
           function resumeBehaviorNarrative(student) {
             if (!student?.timeline || student.timeline.length < 2) return "";
             const sorted = [...student.timeline].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
@@ -3459,18 +3646,32 @@
             const s = resumeModal.value.student;
             const initialStats = getInitialEvidenceStats(s);
             const currentStats = getEvidenceStats(s);
-            const initialData = RADAR_KEYS.map((k) => initialStats[k] || 0);
-            const currentData = RADAR_KEYS.map((k) => currentStats[k] || 0);
-            const maxVal = Math.max(10, ...initialData, ...currentData);
+            // 四軸嚴格對應：問題解決、溝通協力、自我覺察、領導力；資料長度固定為 4，避免圖形異常
+            const radarLabels = ["問題解決", "溝通協力", "自我覺察", "領導力"];
+            const initialData = [
+              Number(initialStats.problemSolving) || 0,
+              Number(initialStats.communication) || 0,
+              Number(initialStats.selfAwareness) || 0,
+              Number(initialStats.leadership) || 0,
+            ];
+            const currentData = [
+              Number(currentStats.problemSolving) || 0,
+              Number(currentStats.communication) || 0,
+              Number(currentStats.selfAwareness) || 0,
+              Number(currentStats.leadership) || 0,
+            ];
+            const maxVal = Math.max(1, 10, ...initialData, ...currentData);
 
-            charts.resumeRadar = new Chart(el, {
-              type: "radar",
-              data: {
-                labels: RADAR_LABELS,
-                datasets: [
-                  {
-                    label: "計畫初期投入基準",
-                    data: initialData,
+            function draw() {
+              if (!el.parentElement || el.getContext("2d") === null) return;
+              charts.resumeRadar = new Chart(el, {
+                type: "radar",
+                data: {
+                  labels: [...radarLabels],
+                  datasets: [
+                    {
+                      label: "計畫初期投入基準",
+                      data: [...initialData],
                     fill: true,
                     backgroundColor: "rgba(148, 163, 184, 0.15)",
                     borderColor: "rgba(100, 116, 139, 0.6)",
@@ -3482,7 +3683,7 @@
                   },
                   {
                     label: "當前實務證據累積量",
-                    data: currentData,
+                    data: [...currentData],
                     fill: true,
                     backgroundColor: "rgba(167, 208, 140, 0.2)",
                     borderColor: "#A7D08C",
@@ -3505,7 +3706,7 @@
                     const list = getEvidenceListByDimension(s, key);
                     resumeRadarEvidencePopover.value = {
                       show: true,
-                      dimensionLabel: RADAR_LABELS[idx],
+                      dimensionLabel: radarLabels[idx],
                       list,
                       studentName: s.name || "",
                     };
@@ -3519,7 +3720,10 @@
                   },
                   tooltip: {
                     callbacks: {
-                      label: (ctx) => ` ${ctx.dataset.label} · ${ctx.label}：已累積 ${ctx.parsed.r} 則實務證據`,
+                      label: (ctx) => {
+                        const val = ctx.parsed?.r ?? ctx.raw ?? ctx.parsed ?? 0;
+                        return ` ${ctx.dataset.label} · ${ctx.label}：已累積 ${val} 則實務證據`;
+                      },
                     },
                   },
                 },
@@ -3530,10 +3734,19 @@
                     ticks: { display: false },
                     grid: { color: "rgba(15, 23, 42, 0.08)" },
                     angleLines: { color: "rgba(15, 23, 42, 0.08)" },
-                    pointLabels: { color: "#0f172a", font: { size: 12, weight: 600 } },
+                    pointLabels: {
+                      display: true,
+                      color: "#0f172a",
+                      font: { size: 12, weight: 600 },
+                      callback: (_, i) => radarLabels[i],
+                    },
                   },
                 },
               },
+            });
+            }
+            requestAnimationFrame(() => {
+              nextTick(() => draw());
             });
           }
 
@@ -3684,6 +3897,7 @@
             pinEvidence,
             openCoffeeChat,
             openResume,
+            parseRecordRefs,
             viewEvidence,
             showEvidencePopover,
             hideEvidencePopover,
