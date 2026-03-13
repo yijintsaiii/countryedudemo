@@ -1128,22 +1128,39 @@
             </div>
 
             <transition name="fade" mode="out-in">
-              <!-- 成長數據儀表板：Hero → 價值卡 → 學期成果總覽 → 學生能力軌跡與亮點分析 → 能力節點與實務連結 -->
+              <!-- 成長數據儀表板：時間尺度 → Hero → 價值卡 → 趨勢洞察 → 成果總覽 → 鄉育分析邏輯 → 學生證據鏈 → 自我覺察 → 能力節點與實務連結 -->
               <section key="unified" class="space-y-8 relative">
-                <!-- 1. Hero（置頂） -->
+                <!-- 時間尺度切換器（置頂） -->
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                  <div class="text-sm font-semibold text-slate-600">數據時間尺度</div>
+                  <div class="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+                    <button
+                      v-for="key in ['semester','year','threeYears','allTime']"
+                      :key="key"
+                      type="button"
+                      class="rounded-xl px-4 py-2.5 text-sm font-semibold transition"
+                      :class="selectedTimeScale === key ? 'bg-brand-700 text-white shadow-soft' : 'text-slate-700 hover:bg-slate-50'"
+                      @click="selectedTimeScale = key"
+                    >
+                      {{ dashboardTimeScaleMeta[key].label }}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 1. Hero（動態文案） -->
                 <div class="rounded-[24px] border border-slate-200 bg-white p-6 md:p-8 shadow-soft">
                   <div class="max-w-3xl">
                     <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 md:text-3xl">
                       成長數據儀表板｜從學習參與到人才媒合的可視化路徑
                     </h1>
                     <p class="mt-3 text-base text-slate-600 leading-relaxed">
-                      把學生在課程中的參與、能力證據與真實實踐，轉化為可被理解、追蹤與信任的成長歷程。
+                      把學生在課程中的參與、能力證據與真實實踐，轉化為可被理解、追蹤與信任的成長歷程；看見成長如何形成、能力如何被證明、下一步如何發生。
                     </p>
                     <p class="mt-2 text-sm text-slate-500">
-                      這不是成績單，而是「成長證據儀表板」——看見誰完成了課程、誰留下了能力證據、誰已準備好進入實務協作或企業連結。
+                      這不是成績單，而是「決策與判讀型儀表板」——幫基金會、導師、企業與學生本人共同理解誰在什麼階段、哪些歷程支撐能力判斷、下一步適合什麼支持策略。
                     </p>
-                    <p class="mt-4 text-xs text-slate-500 border-l-2 border-slate-200 pl-3">
-                      本頁數據範圍：以單一課程 × 單一學期為統計母體，呈現本期學員的整體學習進展與能力證據累積情況。
+                    <p class="mt-4 text-xs text-slate-500 border-l-2 border-brand-700/30 pl-3">
+                      <span class="font-semibold text-slate-600">本頁數據範圍（{{ dashboardTimeScaleMeta[selectedTimeScale].label }}）：</span> {{ dashboardTimeScaleMeta[selectedTimeScale].heroDesc }}
                     </p>
                   </div>
                 </div>
@@ -1161,33 +1178,85 @@
                   </div>
                 </div>
 
-                <!-- 3. 學期成果總覽（原三階段漏斗改寫為學期成果語言） -->
+                <!-- 2.5 趨勢洞察 -->
                 <div class="rounded-[24px] border border-slate-200 bg-white p-6 md:p-8 shadow-soft">
-                  <div class="text-lg font-bold text-brand-700 mb-4">本學期成果總覽</div>
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div v-for="card in semesterOutcomeCards" :key="card.id" class="rounded-2xl border-2 border-slate-200/80 bg-slate-50/50 p-5">
-                      <div class="text-sm font-bold text-slate-800 mb-2">{{ card.title }}</div>
-                      <div class="text-3xl font-extrabold text-brand-700 mt-1">{{ card.value }}</div>
-                      <div v-if="card.subMetric" class="text-xs text-slate-500 mt-1">{{ card.subMetric }}</div>
-                      <p class="mt-3 text-xs text-slate-600 leading-relaxed">{{ card.description }}</p>
+                  <div class="text-lg font-bold text-brand-700 mb-3">趨勢洞察</div>
+                  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 rounded-xl bg-slate-50/80 p-4 min-h-[200px]">
+                      <canvas ref="dashboardTrendChartCanvas" height="200"></canvas>
+                    </div>
+                    <div class="space-y-3">
+                      <p class="text-sm font-semibold text-slate-700">系統摘要</p>
+                      <p v-for="(line, i) in currentTrendData.summaryLines" :key="i" class="text-xs text-slate-600 leading-relaxed">{{ line }}</p>
                     </div>
                   </div>
                 </div>
 
-                <!-- 4. 學生能力軌跡與亮點分析（直式成長卡輪播） -->
+                <!-- 3. 成果總覽（依時間尺度動態標題與卡片） -->
+                <div class="rounded-[24px] border border-slate-200 bg-white p-6 md:p-8 shadow-soft">
+                  <div class="text-lg font-bold text-brand-700 mb-4">{{ dashboardOverviewTitle }}</div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div v-for="card in currentSummaryCards" :key="card.id" class="rounded-2xl border-2 border-slate-200/80 bg-slate-50/50 p-5 flex flex-col">
+                      <div class="text-sm font-bold text-slate-800 mb-2">{{ card.title }}</div>
+                      <div class="text-3xl font-extrabold text-brand-700 mt-1">{{ card.value }}</div>
+                      <div v-if="card.subMetric" class="text-xs text-slate-500 mt-1">{{ card.subMetric }}</div>
+                      <div v-if="card.deltaText" class="mt-2 text-xs font-medium text-slate-600">{{ card.deltaText }}</div>
+                      <p class="mt-3 text-xs text-slate-600 leading-relaxed flex-1">{{ card.shortInterpretation }}</p>
+                      <p class="mt-2 text-[10px] text-slate-500 border-t border-slate-200/50 pt-2">{{ card.supportingHint }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 3.5 鄉育的成長分析邏輯 -->
+                <div class="rounded-[24px] border border-slate-200 bg-brand-50/20 p-6 md:p-8 shadow-soft">
+                  <div class="text-lg font-bold text-brand-700 mb-2">鄉育的成長分析邏輯</div>
+                  <p class="text-sm text-slate-600 mb-4">從教育歷程到人才判讀的分析框架——董事長、企業主管、合作夥伴一看就懂鄉育的獨特價值。</p>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div v-for="card in growthLogicCards" :key="card.id" class="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm flex flex-col">
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xl">{{ card.emoji }}</span>
+                        <span class="text-sm font-bold text-slate-900">{{ card.title }}</span>
+                      </div>
+                      <p class="text-xs text-slate-600 leading-relaxed flex-1">{{ card.body }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 4. 學生能力軌跡與證據鏈（形成歷程） -->
                 <div class="rounded-[24px] bg-white p-6 md:p-8 shadow-soft border border-slate-200">
-                  <div class="text-lg font-bold text-brand-700 mb-2">學生能力軌跡與亮點分析</div>
-                  <p class="text-sm text-slate-600 mb-4">從課程參與、合作任務、反思紀錄到實作表現，逐步形塑每位學生可被看見的能力軌跡；點擊能力輪廓可查看對應證據。</p>
+                  <div class="text-lg font-bold text-brand-700 mb-2">學生能力軌跡與證據鏈</div>
+                  <p class="text-sm text-slate-600 mb-4">不只看到能力結果，而是看到學生如何被培養成現在這樣——參與了什麼、接受了哪些支持、形成了哪些能力、下一步適合什麼。</p>
                   <div class="relative">
                     <button type="button" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/90 border border-slate-200 w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-50 shadow-sm" @click="highlightCarouselIndex = highlightCarouselIndex - 1 < 0 ? highlightStudentCards.length - 1 : highlightCarouselIndex - 1" aria-label="上一張">←</button>
                     <button type="button" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/90 border border-slate-200 w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-50 shadow-sm" @click="highlightCarouselIndex = (highlightCarouselIndex + 1) % highlightStudentCards.length" aria-label="下一張">→</button>
                     <div class="px-12 py-2">
-                      <div v-for="(card, idx) in highlightStudentCards" :key="card.id" v-show="idx === highlightCarouselIndex" class="rounded-2xl border border-slate-200 bg-slate-50/30 p-6 max-w-sm mx-auto flex flex-col gap-5">
+                      <div v-for="(card, idx) in highlightStudentCards" :key="card.id" v-show="idx === highlightCarouselIndex" class="rounded-2xl border border-slate-200 bg-slate-50/30 p-6 max-w-lg mx-auto flex flex-col gap-4">
                         <div class="flex flex-col items-center text-center">
                           <div class="h-20 w-20 rounded-full flex items-center justify-center text-white text-2xl font-bold bg-brand-700 shadow-soft">{{ card.name.charAt(0) }}</div>
                           <div class="mt-3">
                             <div class="text-lg font-bold text-slate-900">{{ card.name }}</div>
                             <div class="text-xs text-slate-600">{{ card.course }}</div>
+                            <div class="mt-1 inline-flex rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700 ring-1 ring-brand-100">目前階段：{{ card.currentStage }}</div>
+                          </div>
+                        </div>
+                        <!-- 成長路徑條／證據鏈時間線 -->
+                        <div class="rounded-xl border border-slate-200 bg-white p-3">
+                          <div class="text-xs font-bold text-slate-600 mb-2">成長路徑</div>
+                          <div class="flex flex-wrap items-center gap-1">
+                            <template v-for="(node, ni) in card.evidencePathNodes" :key="ni">
+                              <span class="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-700">{{ node }}</span>
+                              <span v-if="ni < card.evidencePathNodes.length - 1" class="text-slate-300">→</span>
+                            </template>
+                          </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-left">
+                          <div class="rounded-xl border border-slate-200 bg-white p-3">
+                            <div class="text-[10px] font-semibold text-slate-500 mb-1">累積投入</div>
+                            <div class="text-sm font-semibold text-slate-800">{{ card.investedHours }}</div>
+                          </div>
+                          <div class="rounded-xl border border-slate-200 bg-white p-3">
+                            <div class="text-[10px] font-semibold text-slate-500 mb-1">培養機制</div>
+                            <div class="text-xs text-slate-700">{{ (card.supportMechanisms || []).slice(0, 3).join('、') }}</div>
                           </div>
                         </div>
                         <div class="rounded-xl border border-slate-200 bg-white p-4 cursor-pointer hover:border-brand-200 transition" @click="openStudentEvidenceDetail(card)">
@@ -1201,10 +1270,11 @@
                               </div>
                             </div>
                           </div>
-                          <p class="mt-2 text-[10px] text-slate-500">點擊查看具體能力證據</p>
+                          <p class="mt-2 text-[10px] text-slate-500">點擊查看人才培育分析報告</p>
                         </div>
-                        <p class="text-sm text-slate-600 leading-relaxed line-clamp-3">{{ card.highlightSummary }}</p>
-                        <button type="button" class="w-full rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-95" @click="openResume(card.student)">查看完整履歷</button>
+                        <p class="text-sm text-slate-600 leading-relaxed line-clamp-2">{{ card.capabilityChanges || card.highlightSummary }}</p>
+                        <button type="button" class="w-full rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-95" @click="openStudentEvidenceDetail(card)">查看人才培育分析報告</button>
+                        <button type="button" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="openResume(card.student)">查看完整履歷</button>
                       </div>
                     </div>
                     <div class="flex justify-center gap-2 mt-4">
@@ -1213,56 +1283,128 @@
                   </div>
                 </div>
 
-                <!-- 5. 能力節點 → 職能標籤 → 實務連結（LinkedIn／技能樹概念） -->
+                <!-- 4.5 自我覺察與下一步行動藍圖 -->
+                <div class="rounded-[24px] border border-slate-200 bg-white p-6 md:p-8 shadow-soft">
+                  <div class="text-lg font-bold text-brand-700 mb-2">自我覺察與下一步行動藍圖</div>
+                  <p class="text-sm text-slate-600 mb-4">從成長證據到個人藍圖——幫學生理解自己、命名自己、設定目標、往下一步走；不是在替學生貼標籤，而是在幫學生看見自己的路。</p>
+                  <div class="rounded-2xl border-2 border-brand-200/60 bg-brand-50/30 p-6">
+                    <p class="text-xs font-semibold text-slate-500 mb-2">當前樣本學員（{{ highlightStudentCards[highlightCarouselIndex]?.name || '—' }}）的結構化自我覺察</p>
+                    <template v-if="highlightStudentCards[highlightCarouselIndex]?.selfAwarenessSummary">
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div class="rounded-xl bg-white/80 p-4 border border-slate-200/50">
+                          <div class="text-[10px] font-bold uppercase text-slate-500 mb-1">我目前最穩定的強項</div>
+                          <div class="text-slate-800">{{ highlightStudentCards[highlightCarouselIndex].selfAwarenessSummary.strengths }}</div>
+                        </div>
+                        <div class="rounded-xl bg-white/80 p-4 border border-slate-200/50">
+                          <div class="text-[10px] font-bold uppercase text-slate-500 mb-1">我需要承擔與補強的地方</div>
+                          <div class="text-slate-800">{{ highlightStudentCards[highlightCarouselIndex].selfAwarenessSummary.toOwn }}</div>
+                        </div>
+                        <div class="rounded-xl bg-white/80 p-4 border border-slate-200/50">
+                          <div class="text-[10px] font-bold uppercase text-slate-500 mb-1">我最近最有感的學習轉變</div>
+                          <div class="text-slate-800">{{ highlightStudentCards[highlightCarouselIndex].selfAwarenessSummary.recentShift }}</div>
+                        </div>
+                        <div class="rounded-xl bg-white/80 p-4 border border-slate-200/50">
+                          <div class="text-[10px] font-bold uppercase text-slate-500 mb-1">我下一階段的目標</div>
+                          <div class="text-slate-800">{{ highlightStudentCards[highlightCarouselIndex].selfAwarenessSummary.nextGoal }}</div>
+                        </div>
+                        <div class="md:col-span-2 rounded-xl bg-white/80 p-4 border border-slate-200/50">
+                          <div class="text-[10px] font-bold uppercase text-slate-500 mb-1">我接下來的具體行動</div>
+                          <div class="text-slate-800">{{ highlightStudentCards[highlightCarouselIndex].selfAwarenessSummary.nextActions }}</div>
+                        </div>
+                        <div class="md:col-span-2 rounded-xl bg-growth-g/10 p-4 border border-growth-g/30">
+                          <div class="text-[10px] font-bold uppercase text-slate-600 mb-1">這條路為什麼跟我的興趣／特質／經驗有關</div>
+                          <div class="text-slate-800">{{ highlightStudentCards[highlightCarouselIndex].selfAwarenessSummary.whyThisPath }}</div>
+                        </div>
+                      </div>
+                    </template>
+                    <p v-else class="text-sm text-slate-500">選擇上方學員可查看其自我覺察與個人藍圖。</p>
+                  </div>
+                </div>
+
+                <!-- 5. 能力節點與實務連結（教育到市場的翻譯器） -->
                 <div class="rounded-[24px] bg-white p-6 md:p-8 shadow-soft border border-slate-200">
                   <div class="text-lg font-bold text-brand-700 mb-2">能力節點與實務連結</div>
-                  <p class="text-sm text-slate-600 mb-4">能力節點如何延伸為可被外部理解的職能標籤與實務角色——從課堂證據到人才市場可辨識的 transferable skills。</p>
+                  <p class="text-sm text-slate-600 mb-4">每一個能力節點不只對應 tag 與角色，而是清楚呈現：如何被培養、來自哪些學習情境、可轉譯成哪些職能語言、可承接哪些真實工作情境——不只是課內表現，而是 transferable skill。</p>
                   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div v-for="m in abilityMarketMapping" :key="m.id" class="rounded-2xl border border-slate-200 p-5 hover:border-brand-200 transition flex flex-col">
+                    <div v-for="m in enhancedAbilityMarketMapping" :key="m.id" class="rounded-2xl border border-slate-200 p-5 hover:border-brand-200 transition flex flex-col">
                       <div class="text-sm font-bold text-brand-700 mb-3">{{ m.skillNode }}</div>
-                      <div class="flex flex-wrap gap-1.5 mb-3">
-                        <span v-for="tag in (m.capabilityTags || [])" :key="tag" class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 border border-slate-200/60">#{{ tag }}</span>
+                      <div class="text-[10px] font-semibold text-slate-500 mb-1">如何被培養／形成證據</div>
+                      <p class="text-xs text-slate-700 mb-3 leading-relaxed">{{ m.formationEvidence }}</p>
+                      <div class="text-[10px] font-semibold text-slate-500 mb-1">對外職能語言</div>
+                      <div class="text-xs text-slate-800 mb-2">{{ m.externalLanguage }}</div>
+                      <div class="text-[10px] font-semibold text-slate-500 mb-1">可承接情境</div>
+                      <div class="text-xs text-slate-800 mb-2">{{ m.applicableScenarios }}</div>
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">準備度：{{ m.readinessLevel }}</span>
                       </div>
-                      <div class="text-xs text-slate-500 mb-0.5">形成情境</div>
-                      <div class="text-sm text-slate-800 mb-2">{{ m.learningContext }}</div>
-                      <div class="text-xs text-slate-500 mb-0.5">可承接任務</div>
-                      <div class="text-sm text-slate-800 mb-2">{{ m.taskType }}</div>
-                      <div class="text-xs text-slate-500 mb-0.5">對接角色</div>
-                      <div class="text-sm text-slate-700 mb-3">{{ m.roles }}</div>
-                      <p class="mt-auto text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-3">{{ m.summary }}</p>
+                      <p class="mt-auto text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-3">{{ m.nextBridgeAction }}</p>
                     </div>
                   </div>
                 </div>
 
                 <!-- 頁底 -->
                 <p class="text-[10px] text-slate-400 text-center py-4 border-t border-slate-200 max-w-xl mx-auto">
-                  本頁示範系統如何將課程參與、能力證據與實務連結轉化為可視化洞察；部分內容為原型示例，正式版將依真實歷程資料動態生成。
+                  本頁為決策與判讀型儀表板：呈現成長如何形成、哪些歷程支撐能力判斷、下一步適合什麼支持策略、如何轉譯為外部可理解的職能語言。部分內容為原型示例，正式版將依真實歷程資料動態生成。
                 </p>
 
-                <!-- 學生能力證據細節 Modal（點擊能力輪廓後開啟） -->
+                <!-- 學生人才培育分析報告 Modal（點擊能力輪廓或「查看人才培育分析報告」後開啟） -->
                 <div v-if="studentEvidenceDetailModal.student" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 overflow-y-auto" @click.self="studentEvidenceDetailModal.student = null">
-                  <div class="rounded-2xl border-2 border-brand-200 bg-white p-6 shadow-xl max-w-lg w-full my-8">
-                    <div class="flex items-center justify-between mb-4">
-                      <span class="text-sm font-bold text-brand-700">{{ studentEvidenceDetailModal.student.name }} · 能力軌跡與證據</span>
+                  <div class="rounded-2xl border-2 border-brand-200 bg-white p-6 shadow-xl max-w-2xl w-full my-8 max-h-[90vh] overflow-hidden flex flex-col">
+                    <div class="flex items-center justify-between mb-4 shrink-0">
+                      <span class="text-lg font-bold text-brand-700">人才培育分析報告 · {{ studentEvidenceDetailModal.student.name }}</span>
                       <button type="button" class="rounded-full p-2 text-slate-500 hover:bg-slate-100" @click="studentEvidenceDetailModal.student = null">✕</button>
                     </div>
-                    <div class="text-xs text-slate-600 space-y-4">
-                      <p>{{ studentEvidenceDetailModal.student.course }}｜最近更新：{{ studentEvidenceDetailModal.student.latestEvidenceDate }}</p>
-                      <p class="font-semibold text-slate-800">這位學生的亮點總結</p>
-                      <p>{{ studentEvidenceDetailModal.student.highlightSummary }}</p>
-                      <p class="font-semibold text-slate-800">能力證據具體內容</p>
-                      <div class="space-y-2 max-h-48 overflow-y-auto">
-                        <div v-for="(e, i) in (studentEvidenceDetailModal.student.evidenceList || [])" :key="i" class="rounded-xl bg-slate-50 p-3 border border-slate-200/50">
-                          <div class="text-[10px] text-slate-500">{{ e.type }} · {{ prettyDate(e.date) }}</div>
-                          <div class="text-sm font-medium text-slate-800 mt-1">{{ e.title }}</div>
-                          <div class="text-[10px] text-slate-600 mt-1">{{ e.note }}</div>
-                          <div v-if="e.evidence?.length" class="flex flex-wrap gap-1 mt-2">
-                            <span v-for="ev in e.evidence" :key="ev" class="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] text-brand-700">{{ ev }}</span>
+                    <div class="text-sm text-slate-700 space-y-4 overflow-y-auto soft-scroll flex-1">
+                      <div class="rounded-xl bg-slate-50 p-4 border border-slate-200/50">
+                        <div class="text-[10px] font-bold uppercase text-slate-500 mb-1">目前發展階段</div>
+                        <div class="font-semibold text-slate-900">{{ studentEvidenceDetailModal.student.currentStage }}</div>
+                        <div class="text-xs text-slate-600 mt-1">{{ studentEvidenceDetailModal.student.course }}｜最近更新：{{ studentEvidenceDetailModal.student.latestEvidenceDate }}</div>
+                      </div>
+                      <div>
+                        <div class="text-[10px] font-bold uppercase text-slate-500 mb-1">重要學習歷程</div>
+                        <ul class="list-disc list-inside text-xs text-slate-700 space-y-1">
+                          <li v-for="(exp, i) in (studentEvidenceDetailModal.student.participatedExperiences || [])" :key="i">{{ exp }}</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <div class="text-[10px] font-bold uppercase text-slate-500 mb-1">鄉育提供的培養機制</div>
+                        <div class="text-xs text-slate-700">{{ (studentEvidenceDetailModal.student.supportMechanisms || []).join('、') }}</div>
+                      </div>
+                      <div>
+                        <div class="text-[10px] font-bold uppercase text-slate-500 mb-1">哪些證據支撐能力成長判斷</div>
+                        <div class="space-y-2 max-h-40 overflow-y-auto">
+                          <div v-for="(e, i) in (studentEvidenceDetailModal.student.evidenceList || [])" :key="i" class="rounded-lg bg-white border border-slate-200/50 p-2">
+                            <div class="text-[10px] text-slate-500">{{ e.type }} · {{ prettyDate(e.date) }}</div>
+                            <div class="text-xs font-medium text-slate-800">{{ e.title }}</div>
+                            <div v-if="e.evidence?.length" class="flex flex-wrap gap-1 mt-1">
+                              <span v-for="ev in e.evidence" :key="ev" class="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] text-brand-700">{{ ev }}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
+                      <div class="rounded-xl bg-growth-g/10 p-4 border border-growth-g/30">
+                        <div class="text-[10px] font-bold uppercase text-slate-600 mb-1">能力變化摘要</div>
+                        <div class="text-xs text-slate-800">{{ studentEvidenceDetailModal.student.capabilityChanges || studentEvidenceDetailModal.student.highlightSummary }}</div>
+                      </div>
+                      <div>
+                        <div class="text-[10px] font-bold uppercase text-slate-500 mb-1">目前適合銜接的任務／實習／合作情境</div>
+                        <div class="text-xs text-slate-800">{{ studentEvidenceDetailModal.student.marketReadiness }}</div>
+                      </div>
+                      <div class="rounded-xl bg-brand-50/50 p-4 border border-brand-200/50">
+                        <div class="text-[10px] font-bold uppercase text-brand-700 mb-1">下一步建議</div>
+                        <div class="text-xs text-slate-800">{{ studentEvidenceDetailModal.student.nextStepAction }}</div>
+                      </div>
+                      <template v-if="studentEvidenceDetailModal.student.selfAwarenessSummary">
+                        <div class="border-t border-slate-200 pt-4">
+                          <div class="text-[10px] font-bold uppercase text-slate-500 mb-2">自我覺察與個人藍圖（摘要）</div>
+                          <div class="text-xs text-slate-700">{{ studentEvidenceDetailModal.student.personalBlueprint }}</div>
+                        </div>
+                      </template>
                     </div>
-                    <button type="button" class="mt-4 w-full rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-95" @click="openResume(studentEvidenceDetailModal.student.student); studentEvidenceDetailModal.student = null">查看完整履歷</button>
+                    <div class="mt-4 flex gap-2 shrink-0">
+                      <button type="button" class="flex-1 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-95" @click="openResume(studentEvidenceDetailModal.student.student); studentEvidenceDetailModal.student = null">查看完整履歷</button>
+                      <button type="button" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="studentEvidenceDetailModal.student = null">關閉</button>
+                    </div>
                   </div>
                 </div>
 
@@ -2813,6 +2955,74 @@
             D: "在專案帶領與溫柔領導上有具體事件紀錄，適合往專案管理發展。",
             E: "在邏輯拆解與風險控管上有初步展現，可持續累積溝通類證據。",
           };
+          const EVIDENCE_PATH_NODES = ["參與課程", "完成任務", "產出反思", "接受回饋", "能力提升", "對接市場角色"];
+          const STUDENT_DEVELOPMENT_MOCK = {
+            A: {
+              currentStage: "形成職能輪廓",
+              participatedExperiences: ["立德計畫團隊專題", "需求收斂與規格制定", "志工服務回饋會", "小型專案帶領"],
+              investedHours: "約 120 小時",
+              investedHoursNum: 120,
+              reflectionMoments: ["同理聆聽與自我覺察練習", "需求收斂與聆聽實務", "團隊衝突中的角色覺察"],
+              supportMechanisms: ["導師回饋", "實作任務", "同儕協作", "Coffee Chat"],
+              capabilityChanges: "從單點溝通到需求對齊與規格化，能主責跨部門收斂會議並產出 PRD。",
+              marketReadiness: "營運協作、專案助理、社群協作、行銷支援",
+              nextStepAction: "可銜接企業實習或專案型合作，建議安排一次企業導師回饋。",
+              selfAwarenessSummary: { strengths: "需求對齊、結構化表達、同理聆聽", toOwn: "在時間壓力下仍能維持聆聽品質", recentShift: "從「說完就好」到「先聽再收斂」", nextGoal: "把好好說明變成可複製的流程", nextActions: "下次討論前用 3 句話寫下目標、限制、要請求的協助", whyThisPath: "興趣在對外溝通與行銷，經驗已對齊協作與規格化能力。" },
+              personalBlueprint: "我目前最穩定的強項是需求對齊與溝通；需要承擔的是在緊急時仍保持聆聽。最近最有感的轉變是先聽再收斂；下一階段目標是把說明流程化；接下來會用 3 句話預習每次討論。這條路跟我的興趣與經驗一致。",
+            },
+            B: {
+              currentStage: "穩定投入",
+              participatedExperiences: ["實習面試與技術追問", "模擬面試同儕回饋", "專題小組任務拆解", "結構化實務紀錄"],
+              investedHours: "約 85 小時",
+              investedHoursNum: 85,
+              reflectionMoments: ["面試焦慮的自我覺察與情緒命名", "從瓶頸到行動方案", "面試技術追問拆解"],
+              supportMechanisms: ["導師回饋", "AI 反思引導", "模擬面試", "Coffee Chat"],
+              capabilityChanges: "從面試焦慮到能拆題與準備腳本，邏輯拆解與目標管理證據增加。",
+              marketReadiness: "研究助理、分析支援、技術面試準備中",
+              nextStepAction: "持續累積 2–3 則實作挑戰證據後，可安排企業見習或模擬面試。",
+              selfAwarenessSummary: { strengths: "問題拆解、邏輯拆解、自我覺察", toOwn: "面試時的自我否定與緊張需要更多練習", recentShift: "能把卡關點收斂成可練習的題型", nextGoal: "把壓力縮小成一題一題", nextActions: "本週挑 3 題常見面試題寫出「我會怎麼拆」", whyThisPath: "職涯興趣在技術開發，證據已對齊問題解決與拆解能力。" },
+              personalBlueprint: "我目前最穩的強項是邏輯拆解與問題解決；需要承擔的是面試時的焦慮與自我否定。最近最有感的轉變是能把瓶頸變成可練習的題型；下一階段目標是把壓力縮小成一題一題；接下來每週練 3 題。這條路跟我的技術興趣一致。",
+            },
+            C: {
+              currentStage: "形成職能輪廓",
+              participatedExperiences: ["學分與修業路徑規格化", "跨組協調營運實務", "課業專案小組分工", "時間壓力下的自我覺察"],
+              investedHours: "約 95 小時",
+              investedHoursNum: 95,
+              reflectionMoments: ["時間壓力下的自我覺察", "需求對齊與溝通韌性", "學分與申請並行時的取捨"],
+              supportMechanisms: ["導師回饋", "實作任務", "同儕協作", "AI 反思引導"],
+              capabilityChanges: "從學分焦慮到能產出學分地圖與修業時程，專案執行與溝通韌性並進。",
+              marketReadiness: "專案協調、營運支援、活動企劃助理",
+              nextStepAction: "可銜接營運或活動企劃型實習，建議持續累積跨組協調證據。",
+              selfAwarenessSummary: { strengths: "邏輯拆解、需求對齊、時間與目標管理", toOwn: "學分與時間拉扯時需要節奏協助", recentShift: "能把一週切成課業／申請／休息並執行", nextGoal: "把一週切成 3 段並保留休息", nextActions: "每段只放 1–2 件最重要的事，休息也排進去", whyThisPath: "興趣在專案協調與營運，經驗已對齊拆解與協調能力。" },
+              personalBlueprint: "我目前最穩的強項是邏輯拆解與需求對齊；需要承擔的是在學分與時間壓力下仍維持節奏。最近最有感的轉變是能結構化一週；下一階段目標是穩定節奏與休息；接下來每段只放 1–2 件要事。這條路跟我的協調與營運興趣一致。",
+            },
+            D: {
+              currentStage: "準備進入實務協作",
+              participatedExperiences: ["社團活動籌備與任務分解", "跨組需求收斂", "溫柔領導與界線練習", "專案風險控管與目標管理"],
+              investedHours: "約 110 小時",
+              investedHoursNum: 110,
+              reflectionMoments: ["溫柔領導與界線練習", "帶領時的情緒覺察與調整", "扛太多時的交棒練習"],
+              supportMechanisms: ["導師回饋", "實作任務", "同儕協作", "Coffee Chat"],
+              capabilityChanges: "從「扛起來」到「一起做」，能產出 PRD 與 WBS、分配責任並同理聆聽。",
+              marketReadiness: "專案管理、團隊帶領、營運協作",
+              nextStepAction: "已具備實務協作準備度，可銜接專案管理實習或帶領型任務。",
+              selfAwarenessSummary: { strengths: "專案執行、任務拆解、溫柔領導、界線練習", toOwn: "有時仍會扛太多，需練習交棒", recentShift: "從扛起來改成說明範圍並交棒一段", nextGoal: "把「扛起來」改成「一起做」", nextActions: "接任務前先說明能做的範圍，把一小段交棒出去", whyThisPath: "興趣在專案管理與團隊帶領，經驗已對齊帶領與分工能力。" },
+              personalBlueprint: "我目前最穩的強項是專案執行與溫柔領導；需要承擔的是界線與交棒。最近最有感的轉變是一起做而不是自己扛；下一階段目標是穩定交棒習慣；接下來接任務前先說明範圍並交出一段。這條路跟我的帶領與管理興趣一致。",
+            },
+            E: {
+              currentStage: "探索中",
+              participatedExperiences: ["期末報告規格拆解與風險控管"],
+              investedHours: "約 35 小時",
+              investedHoursNum: 35,
+              reflectionMoments: ["報告拆解與截止節點追蹤"],
+              supportMechanisms: ["導師回饋", "AI 反思引導"],
+              capabilityChanges: "初步展現邏輯拆解與風險控管，溝通與對外說明證據尚在累積。",
+              marketReadiness: "行銷／溝通類尚在對齊證據，可先銜接內容企劃支援",
+              nextStepAction: "建議本學期至少累積 2–3 則對外說明或跨組溝通證據，再安排企業見習。",
+              selfAwarenessSummary: { strengths: "邏輯拆解、風險控管", toOwn: "職涯興趣在行銷溝通，但目前證據多落在技術拆解", recentShift: "開始把報告拆成可交付段落", nextGoal: "把興趣寫成可累積的證據", nextActions: "記錄一則對外說明或需求收斂的經驗，用情境→行動→成果寫下來", whyThisPath: "興趣在行銷與對外溝通，需要讓證據軌跡更對齊目標。" },
+              personalBlueprint: "我目前較穩的是邏輯拆解；需要承擔的是把行銷／溝通興趣變成可展示的證據。最近最有感的轉變是會拆解報告與時程；下一階段目標是對齊興趣與證據；接下來記錄一則溝通或說明經驗。這條路跟我的品牌與行銷興趣一致。",
+            },
+          };
           const highlightStudentCards = computed(() => {
             const list = students.value.slice(0, 5);
             const RADAR_LABELS_BY_KEY = { problemSolving: "問題解決", communication: "溝通協力", selfAwareness: "自我覺察", leadership: "領導力" };
@@ -2835,6 +3045,7 @@
               const evidenceList = timeline.slice(0, 8).map((e) => ({ type: typeLabel(e), date: e.date, title: e.title, note: e.note || "", evidence: e.evidence || [] }));
               const dates = timeline.map((e) => e.date).filter(Boolean);
               const latestEvidenceDate = dates.length ? prettyDate(dates.reduce((a, b) => (a > b ? a : b))) : "—";
+              const dev = STUDENT_DEVELOPMENT_MOCK[s.id] || {};
               return {
                 id: s.id,
                 name: s.name,
@@ -2844,6 +3055,17 @@
                 evidenceList,
                 latestEvidenceDate,
                 student: s,
+                currentStage: dev.currentStage || "探索中",
+                participatedExperiences: dev.participatedExperiences || [],
+                investedHours: dev.investedHours != null ? dev.investedHours : "—",
+                reflectionMoments: dev.reflectionMoments || [],
+                supportMechanisms: dev.supportMechanisms || [],
+                capabilityChanges: dev.capabilityChanges || "",
+                marketReadiness: dev.marketReadiness || "",
+                nextStepAction: dev.nextStepAction || "",
+                selfAwarenessSummary: dev.selfAwarenessSummary || null,
+                personalBlueprint: dev.personalBlueprint || "",
+                evidencePathNodes: EVIDENCE_PATH_NODES,
               };
             });
           });
@@ -2882,12 +3104,103 @@
             }
             return out.slice(0, 4);
           });
+          const enhancedAbilityMarketMapping = ref([
+            { id: "e1", skillNode: "溝通協作", formationEvidence: "在多次小組任務中能整合不同意見、推進分工、處理延誤與衝突；來自專題任務、反思日誌、需求收斂情境。", externalLanguage: "初階專案協作能力、Cross-functional Collaboration、Stakeholder Communication", applicableScenarios: "校園專題助理、活動企劃支援、跨部門溝通型任務", readinessLevel: "可承接", nextBridgeAction: "建議累積 1–2 則跨組協調或對外簡報證據後銜接實習。" },
+            { id: "e2", skillNode: "問題解決", formationEvidence: "在專題任務、實作挑戰與反思拆解中產出邏輯拆解、目標管理、風險控管證據。", externalLanguage: "Structured Problem Solving、Data-driven Analysis、Risk & Goal Management", applicableScenarios: "研究助理、分析支援、內容企劃、邏輯拆解型任務", readinessLevel: "可承接", nextBridgeAction: "可對接數據整理或邏輯類實務任務，易被招募端辨識。" },
+            { id: "e3", skillNode: "結構化表達", formationEvidence: "來自專題任務、反思日誌、提案情境中的視覺整理與簡報收斂。", externalLanguage: "Visual Communication、Structured Presentation、Clarity & Convergence", applicableScenarios: "提案視覺整理、簡報收斂、行銷支援、設計支援", readinessLevel: "可承接", nextBridgeAction: "該能力常應用於提案與視覺化整理，對接行銷與設計支援等角色。" },
+            { id: "e4", skillNode: "專案執行與領導", formationEvidence: "在小組合作、專題任務、分工帶領中產出專案規格、WBS、任務拆解與團隊協調證據。", externalLanguage: "Project Execution、Team Facilitation、Task Decomposition", applicableScenarios: "專案管理、團隊帶領、營運協作", readinessLevel: "可承接", nextBridgeAction: "領導力證據對應專案與分工實務，可延伸為企業可理解的專案執行與帶領能力。" },
+            { id: "e5", skillNode: "自我覺察", formationEvidence: "來自反思日誌、目標對齊、情緒與動機覺察中的命名與調整。", externalLanguage: "Self-awareness & Reflection、Empathetic Listening、Goal Alignment", applicableScenarios: "反思與目標對齊、回饋整合、個人發展規劃、人資發展、教練支援", readinessLevel: "可銜接", nextBridgeAction: "自我覺察與同理聆聽可轉譯為人資與教練情境中受重視的 transferable skills。" },
+          ]);
 
           const dashboardValueCards = ref([
-            { id: "1", emoji: "📊", title: "幫基金會看見學習成效", description: "從完課率到能力證據產出、再到實務連結，一目了然誰在什麼階段，資源可以對準投放。", correspondsTo: "對應本頁：學期成果總覽" },
-            { id: "2", emoji: "🌱", title: "幫學生看見自己的能力軌跡", description: "不是分數，而是「我留下了哪些證據」——強項、可補強處、履歷輪廓，都變成可說的故事。", correspondsTo: "對應本頁：學生能力軌跡與亮點分析" },
-            { id: "3", emoji: "🤝", title: "幫企業更理解學生的準備程度", description: "學生突出的能力對應到實務任務與角色，降低招募端的理解成本，提高媒合信任。", correspondsTo: "對應本頁：能力節點與實務連結" },
+            { id: "1", emoji: "📊", title: "幫基金會看見成長如何形成", description: "從不同時間尺度看見規模、品質與變化；誰在什麼階段、哪些歷程支撐能力判斷，資源可對準投放。", correspondsTo: "對應本頁：成果總覽與趨勢洞察" },
+            { id: "2", emoji: "🌱", title: "幫學生看見自己的形成歷程", description: "不只是結果，而是「如何被培養成現在這樣」——參與、反思、回饋、能力證據與下一步，都變成可說的故事。", correspondsTo: "對應本頁：學生能力軌跡與證據鏈" },
+            { id: "3", emoji: "🤝", title: "幫企業理解人才準備度與職能翻譯", description: "教育歷程轉譯為外部可理解的職能語言與任務型角色，降低招募端理解成本，提高媒合信任。", correspondsTo: "對應本頁：能力節點與實務連結" },
           ]);
+
+          // --- 成長儀表板：時間尺度切換與對應資料 ---
+          const selectedTimeScale = ref("semester"); // 'semester' | 'year' | 'threeYears' | 'allTime'
+          const dashboardTimeScaleMeta = {
+            semester: { label: "本學期", short: "本學期", heroDesc: "聚焦本期學員的參與、能力證據與實務連結進展。" },
+            year: { label: "過去一年", short: "年度", heroDesc: "回看近一年的整體培養成效與能力成長趨勢。" },
+            threeYears: { label: "過去三年", short: "三年", heroDesc: "觀察中長期人才培育軌跡與累積成果。" },
+            allTime: { label: "累積至今", short: "累積", heroDesc: "呈現鄉育長期作為人才培育平台的整體影響力。" },
+          };
+          const dashboardSummaryByTimeScale = {
+            semester: [
+              { id: "scale1", title: "參與學員數", value: "23 人", subMetric: "本學期", deltaText: "與上學期持平", shortInterpretation: "穩定開班規模，可持續追蹤完課與證據產出。", supportingHint: "學員基數是後續能力證據與媒合的母體。" },
+              { id: "scale2", title: "完成實作任務", value: "19 人", subMetric: "83%", deltaText: "+8% vs 上學期", shortInterpretation: "更多學員從「聽課」進入「做中學」。", supportingHint: "實作任務是能力形成的重要節點。" },
+              { id: "scale3", title: "留下能力證據", value: "21 人", subMetric: "91%", deltaText: "+5%", shortInterpretation: "多數學員已產出可辨識的成長證據。", supportingHint: "證據比例提升，代表學生越來越能說清楚自己的歷程。" },
+              { id: "scale4", title: "有反思紀錄", value: "18 人", subMetric: "78%", deltaText: "+12% vs 去年", shortInterpretation: "自我覺察與歷程命名正在深化。", supportingHint: "反思紀錄是鄉育論證能力形成的重要依據。" },
+              { id: "scale5", title: "具市場連結經驗", value: "12 人", subMetric: "52%", deltaText: "+6%", shortInterpretation: "約半數學員已接觸實務協作或企業情境。", supportingHint: "市場連結經驗有助於職能轉譯與下一步媒合。" },
+            ],
+            year: [
+              { id: "scale1", title: "年度參與學員", value: "89 人", subMetric: "跨 3 期", deltaText: "+15% vs 前一年", shortInterpretation: "人才培育規模穩健成長。", supportingHint: "年度視角可看出平台擴張與資源配置成效。" },
+              { id: "scale2", title: "完成實作任務", value: "71 人", subMetric: "80%", deltaText: "+10%", shortInterpretation: "實作完成率提升，培養機制見效。", supportingHint: "完成任務數反映課程設計與陪伴品質。" },
+              { id: "scale3", title: "留下能力證據", value: "76 人", subMetric: "85%", deltaText: "+8%", shortInterpretation: "多數學員在一年內留下可追蹤證據。", supportingHint: "能力證據是後續判讀與媒合的基礎。" },
+              { id: "scale4", title: "有反思紀錄", value: "62 人", subMetric: "70%", deltaText: "+14%", shortInterpretation: "反思習慣在年度尺度下明顯提升。", supportingHint: "反思紀錄比例提升，代表學生越來越能說清楚自己的歷程。" },
+              { id: "scale5", title: "具市場連結經驗", value: "38 人", subMetric: "43%", deltaText: "+11%", shortInterpretation: "有市場連結經驗者在近一年增長最快。", supportingHint: "教育到市場的橋接正在加速。" },
+            ],
+            threeYears: [
+              { id: "scale1", title: "累積參與學員", value: "234 人", subMetric: "跨多期", deltaText: "三年複合成長 +22%", shortInterpretation: "長期人才池持續擴大。", supportingHint: "累積規模是影響力與品牌的重要指標。" },
+              { id: "scale2", title: "完成實作任務", value: "198 人", subMetric: "85%", deltaText: "逐年提升", shortInterpretation: "近三年完成實作任務的學生比例持續上升。", supportingHint: "實作完成率反映課程與支持系統的成熟度。" },
+              { id: "scale3", title: "留下能力證據", value: "201 人", subMetric: "86%", deltaText: "+6% vs 三年前", shortInterpretation: "多數學員在計畫中留下可辨識軌跡。", supportingHint: "證據累積是鄉育分析邏輯的輸入來源。" },
+              { id: "scale4", title: "有反思紀錄", value: "168 人", subMetric: "72%", deltaText: "+18%", shortInterpretation: "自我覺察與歷程命名已成常態。", supportingHint: "反思紀錄是論證能力形成與自我覺察的關鍵。" },
+              { id: "scale5", title: "具市場連結經驗", value: "102 人", subMetric: "44%", deltaText: "逐年成長", shortInterpretation: "教育到市場的轉譯通道穩健。", supportingHint: "市場連結經驗者比例提升，有助於企業信任。" },
+            ],
+            allTime: [
+              { id: "scale1", title: "累積參與學員", value: "512 人", subMetric: "全計畫", deltaText: "平台整體影響力", shortInterpretation: "鄉育長期陪伴的學員總規模。", supportingHint: "累積至今的母體是品牌與合作談判的基礎。" },
+              { id: "scale2", title: "完成實作任務", value: "428 人", subMetric: "84%", deltaText: "長期穩定", shortInterpretation: "多數學員在計畫中完成至少一項實作。", supportingHint: "實作完成是能力形成的重要門檻。" },
+              { id: "scale3", title: "留下能力證據", value: "441 人", subMetric: "86%", deltaText: "持續累積", shortInterpretation: "證據庫支持成長分析與人才判讀。", supportingHint: "能力證據讓「成長如何形成」可被論證。" },
+              { id: "scale4", title: "有反思紀錄", value: "368 人", subMetric: "72%", deltaText: "近年顯著提升", shortInterpretation: "自我覺察與歷程命名已成鄉育特色。", supportingHint: "反思紀錄比例提升，代表學生越來越能說清楚自己的歷程。" },
+              { id: "scale5", title: "具市場連結經驗", value: "218 人", subMetric: "43%", deltaText: "逐年成長", shortInterpretation: "長期累積的實務銜接人才池。", supportingHint: "市場連結經驗者為企業與基金會共同關注對象。" },
+            ],
+          };
+          const dashboardTrendByTimeScale = {
+            semester: { labels: ["第1期", "第2期", "第3期", "本期"], values: [18, 20, 21, 23], summaryLines: ["本學期參與學員較上期略增，完課率維持 90% 以上。", "留下能力證據者比例較上學期提升約 5%，反思紀錄比例明顯上升。"] },
+            year: { labels: ["Q1", "Q2", "Q3", "Q4"], values: [18, 22, 24, 25], summaryLines: ["過去一年完成實作任務的學員比例持續上升。", "有市場連結經驗者在近一年增長最快，反映教育到市場的橋接加速。"] },
+            threeYears: { labels: ["Y1", "Y2", "Y3"], values: [68, 78, 88], summaryLines: ["近三年完成實作任務的學生比例持續上升。", "有反思紀錄者比例三年內提升約 18%，自我覺察與歷程命名已成常態。"] },
+            allTime: { labels: ["3年前", "2年前", "去年", "今年"], values: [98, 128, 158, 128], summaryLines: ["累積至今參與學員總數穩定成長，平台影響力持續擴大。", "能力證據與市場連結經驗者比例逐年提升，人才培育品質與銜接並進。"] },
+          };
+          const growthLogicCards = ref([
+            { id: "1", title: "如何定義成長", emoji: "🌱", body: "不是只看結果，而是看參與、投入、反思、修正、實作、轉化。鄉育用「歷程證據」定義成長：誰在什麼情境下做了什麼、產出什麼、反思什麼，這些都會被記錄並轉成可辨識的能力節點。" },
+            { id: "2", title: "如何論證能力形成", emoji: "📋", body: "能力不是自稱，而是有對應的任務表現、反思紀錄、合作情境、導師觀察。鄉育把課堂與實作中的行動，收斂為「問題解決、溝通協力、自我覺察、領導力」等維度的證據鏈，讓「這個學生為什麼具備這項能力」可以被說清楚。" },
+            { id: "3", title: "如何連接教育與市場", emoji: "🔗", body: "把校園中的行動與能力節點，轉譯成外部可理解的職能標籤、任務型角色、實務合作潛力。企業與合作夥伴看到的不只是「上過什麼課」，而是「做過什麼、能承接什麼任務、目前處於哪個發展階段」。", },
+            { id: "4", title: "如何協助後續決策", emoji: "🎯", body: "讓基金會、企業夥伴、導師知道下一步該怎麼支持這位學生：該補強哪類證據、該銜接哪種實習或任務、該安排哪種 Coffee Chat 或回饋。儀表板是決策與判讀工具，不是僅供展示的報表。" },
+          ]);
+          const dashboardOverviewTitle = computed(() => {
+            const t = selectedTimeScale.value;
+            if (t === "semester") return "本學期成果總覽";
+            if (t === "year") return "年度成果總覽";
+            if (t === "threeYears") return "三年累積成果總覽";
+            return "累積影響力總覽";
+          });
+          const currentSummaryCards = computed(() => dashboardSummaryByTimeScale[selectedTimeScale.value] || dashboardSummaryByTimeScale.semester);
+          const currentTrendData = computed(() => dashboardTrendByTimeScale[selectedTimeScale.value] || dashboardTrendByTimeScale.semester);
+          const dashboardTrendChartCanvas = ref(null);
+          let dashboardTrendChartInstance = null;
+          function initDashboardTrendChart() {
+            const el = dashboardTrendChartCanvas.value;
+            if (!el) return;
+            if (dashboardTrendChartInstance) { dashboardTrendChartInstance.destroy(); dashboardTrendChartInstance = null; }
+            const trend = currentTrendData.value;
+            dashboardTrendChartInstance = new Chart(el, {
+              type: "line",
+              data: {
+                labels: trend.labels,
+                datasets: [{ label: "參與／完成規模", data: trend.values, borderColor: "#8B4513", backgroundColor: "rgba(139, 69, 19, 0.1)", fill: true, tension: 0.3 }],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, grid: { color: "rgba(15,23,42,0.06)" } }, x: { grid: { display: false } } },
+              },
+            });
+          }
+          function destroyDashboardTrendChart() {
+            if (dashboardTrendChartInstance) { dashboardTrendChartInstance.destroy(); dashboardTrendChartInstance = null; }
+          }
 
           const foundationStats = ref({
             completionRate: 88,
@@ -2959,8 +3272,11 @@
           ]);
 
           function initFoundationCharts() {
-            // 統一儀表板不再使用區域/職涯圖表，保留空函數以相容既有呼叫
+            nextTick(() => { initDashboardTrendChart(); });
           }
+          watch(selectedTimeScale, () => {
+            nextTick(() => { destroyDashboardTrendChart(); initDashboardTrendChart(); });
+          });
 
           // 熱力圖數據：使用教務管理系統的學生名單，並對齊 students（含 timeline）以支援證據統計
           const heatmapStudents = computed(() => {
@@ -3151,6 +3467,7 @@
             destroyChart("mentorMood");
             destroyChart("mentorSkill");
             destroyChart("resumeRadar");
+            destroyDashboardTrendChart();
           }
 
           function initStudentChart() {
@@ -4001,6 +4318,14 @@
             demoStudentCard,
             abilityMarketMapping,
             dashboardValueCards,
+            selectedTimeScale,
+            dashboardTimeScaleMeta,
+            dashboardOverviewTitle,
+            currentSummaryCards,
+            currentTrendData,
+            growthLogicCards,
+            enhancedAbilityMarketMapping,
+            dashboardTrendChartCanvas,
             foundationHighlights,
             successfulPlacements,
             foundationTraitTags,
